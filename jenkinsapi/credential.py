@@ -50,7 +50,14 @@ class Credential(object):
     def _get_attributes_xml(self, data):
         root = ET.Element(self.jenkins_class)
         for item in data:
-            ET.SubElement(root, item).text = data[item]
+            if item is dict:
+                item_node = ET.SubElement(root, item)
+                if 'stapler-class' in item:
+                    item_node.attrib['class'] = item['stapler-class']
+                for sub_item in item:
+                    ET.SubElement(item_node, sub_item).text = data[sub_item]
+            else:
+                ET.SubElement(root, item).text = data[item]
         return ET.tostring(root)
 
 
@@ -226,11 +233,8 @@ class SSHKeyCredential(Credential):
         else:
             raise ValueError('Invalid private_key value')
 
-    def get_attributes(self):
-        """
-        Used by Credentials object to create credential in Jenkins
-        """
-
+    @property
+    def attrs(self):
         if self.key_type == 0:
             c_class = self.jenkins_class + '$DirectEntryPrivateKeySource'
         elif self.key_type == 1:
@@ -249,10 +253,17 @@ class SSHKeyCredential(Credential):
         if self.key_type == 1:
             attrs['privateKeyFile'] = self.key_value
 
+        return attrs
+
+    def get_attributes(self):
+        """
+        Used by Credentials object to create credential in Jenkins
+        """
+
         c_id = '' if self.credential_id is None else self.credential_id
 
         return {
-            'stapler-class': c_class,
+            'stapler-class': self.attrs['stapler-class'],
             'Submit': 'OK',
             'json': {
                 '': '1',
@@ -261,13 +272,27 @@ class SSHKeyCredential(Credential):
                     'id': c_id,
                     'username': self.username,
                     'description': self.description,
-                    'privateKeySource': attrs,
+                    'privateKeySource': self.attrs,
                     'passphrase': self.passphrase,
                     'stapler-class': self.jenkins_class,
                     '$class': self.jenkins_class
                 }
             }
         }
+
+    def get_attributes_xml(self):
+        """
+        Used by Credentials object to update a credential in Jenkins
+        """
+        c_id = '' if self.credential_id is None else self.credential_id
+        data = {
+            'id': c_id,
+            'username': self.username,
+            'description': self.description,
+            'privateKeySource': self.attrs,
+            'passphrase': self.passphrase,
+        }
+        return super(SSHKeyCredential, self)._get_attributes_xml(data)
 
 
 class AmazonWebServicesCredentials(Credential):
