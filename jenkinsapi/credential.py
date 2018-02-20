@@ -49,15 +49,16 @@ class Credential(object):
 
     def _get_attributes_xml(self, data):
         root = ET.Element(self.jenkins_class)
-        for item in data:
-            if item is dict:
-                item_node = ET.SubElement(root, item)
-                if 'stapler-class' in item:
-                    item_node.attrib['class'] = item['stapler-class']
-                for sub_item in item:
-                    ET.SubElement(item_node, sub_item).text = data[sub_item]
+        for key in data:
+            value = data[key]
+            if isinstance(value, dict):
+                node = ET.SubElement(root, key)
+                if 'stapler-class' in value:
+                    node.attrib['class'] = value['stapler-class']
+                for sub_key in value:
+                    ET.SubElement(node, sub_key).text = value[sub_key]
             else:
-                ET.SubElement(root, item).text = data[item]
+                ET.SubElement(root, key).text = data[key]
         return ET.tostring(root)
 
 
